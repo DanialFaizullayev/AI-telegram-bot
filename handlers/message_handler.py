@@ -3,10 +3,9 @@ from telegram.ext import ContextTypes
 
 from ai.chat import ask_groq
 from ai.prompts import TOPIC_PROMPTS
-from ai.explanations import EXPLAIN_WORDS
-from templates.topic_intros import TOPIC_INTROS
 from ai.explanations import EXPLAIN_WORDS, explain_test
 from ai.test_generator import generate_test_prompt
+from templates.topic_intros import TOPIC_INTROS
 
 from config.settings import (
     user_histories,
@@ -20,6 +19,7 @@ from utils.keyboards import MAIN_MENU, QUICK_MENU
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
     user_id = update.effective_user.id
     user_message = update.message.text
 
@@ -61,7 +61,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # =========================
-    # NO TOPIC
+    # NO TOPIC SELECTED
     # =========================
 
     if user_topics.get(user_id) is None:
@@ -73,11 +73,98 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         return
 
-            # =========================
+    # =========================
+    # START TEST
+    # =========================
+
+    if user_message == "📝 Тест":
+
+        current_topic = user_topics[user_id]
+
+        topic_name = (
+            current_topic
+            .replace("📐 ", "")
+            .replace("⚡ ", "")
+            .replace("⚗️ ", "")
+            .replace("🧬 ", "")
+            .replace("💻 ", "")
+            .replace("🌍 ", "")
+            .replace("🏛 ", "")
+            .replace("🌐 ", "")
+            .replace("📖 ", "")
+            .replace("📚 ", "")
+        )
+
+        test_prompt = generate_test_prompt(topic_name)
+
+        await update.message.reply_text(
+            "⏳ Генерирую тест ЕНТ..."
+        )
+
+        try:
+
+            reply = ask_groq([
+                {
+                    "role": "system",
+                    "content": f"Ты создаешь тесты ЕНТ только по предмету {topic_name}."
+                },
+                {
+                    "role": "user",
+                    "content": test_prompt
+                }
+            ])
+
+            reply = clean_markdown(reply)
+
+            if "ANSWERS:" in reply:
+
+                test_text, answers_text = reply.split("ANSWERS:")
+
+                answers_lines = answers_text.strip().splitlines()
+
+                correct_answers = []
+
+                for line in answers_lines:
+
+                    if "-" in line:
+
+                        answer = line.split("-")[1].strip().upper()
+                        correct_answers.append(answer)
+
+                active_tests[user_id] = {
+                    "questions": test_text,
+                    "answers": correct_answers,
+                    "user_answers": []
+                }
+
+                test_text += (
+                    "\n\n📩 Отправь ответы в формате:\n"
+                    "A C D B A ..."
+                )
+
+            else:
+                test_text = reply
+
+            await update.message.reply_text(
+                test_text,
+                reply_markup=QUICK_MENU
+            )
+
+        except Exception as e:
+
+            print(f"Test generation error: {e}")
+
+            await update.message.reply_text(
+                "Ошибка генерации теста."
+            )
+
+        return
+
+    # =========================
     # TEST ANSWER CHECKING
     # =========================
 
-    if user_id in active_tests and user_message != "📝 Тест":
+    if user_id in active_tests:
 
         test_data = active_tests[user_id]
 
@@ -91,25 +178,35 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             explanation_prompt = explain_test(test_data)
 
-        reply = ask_groq([
-            {
-                "role": "system",
-                "content": "Ты helpful ENT tutor."
-            },
-            {
-                "role": "user",
-                "content": explanation_prompt
-            }
-        ])
+            try:
 
-        reply = clean_markdown(reply)
+                reply = ask_groq([
+                    {
+                        "role": "system",
+                        "content": "Ты helpful ENT tutor."
+                    },
+                    {
+                        "role": "user",
+                        "content": explanation_prompt
+                    }
+                ])
 
-        await update.message.reply_text(
-            reply,
-            reply_markup=QUICK_MENU
-        )
+                reply = clean_markdown(reply)
 
-        return
+                await update.message.reply_text(
+                    reply,
+                    reply_markup=QUICK_MENU
+                )
+
+            except Exception as e:
+
+                print(f"Explanation error: {e}")
+
+                await update.message.reply_text(
+                    "Ошибка объяснения теста."
+                )
+
+            return
 
         # =========================
         # CHECK TEST ANSWERS
@@ -131,6 +228,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         test_data["user_answers"] = user_answers
 
         score = 0
+
         result_text = "📊 Результаты теста:\n\n"
 
         for i, correct in enumerate(correct_answers):
@@ -174,7 +272,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         return
 
-
     # =========================
     # NORMAL CHAT
     # =========================
@@ -188,7 +285,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     })
 
     history = user_histories[user_id][-10:]
-    
 
     language = detect_language(user_message)
 
@@ -197,11 +293,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         + f"\n\nIMPORTANT: Always answer ONLY in {language} language."
     )
 
-   
     loading_msg = await update.message.reply_text(
-    "⏳ Думаю над ответом...\n"
-    "⏳ Жауап дайындап жатырмын..."
-)
+        "⏳ Думаю над ответом...\n"
+        "⏳ Жауап дайындап жатырмын..."
+    )
 
     try:
 
@@ -214,7 +309,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         reply = clean_markdown(reply)
 
-        
         await loading_msg.delete()
 
         user_histories[user_id].append({

@@ -2,7 +2,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from config.settings import active_tests, user_topics
-from ai.test_generator import generate_test
+from ai.test_generator import generate_test_prompt
 from utils.keyboards import QUICK_MENU, MAIN_MENU
 
 
@@ -24,7 +24,7 @@ async def handle_test(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text("⏳ Генерирую тест...")
 
-    reply = generate_test(topic_name)
+    reply = generate_test_prompt(topic_name)
 
     if "ANSWERS:" not in reply:
         await update.message.reply_text(reply)
