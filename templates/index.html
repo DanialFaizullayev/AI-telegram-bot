@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Bot Dashboard</title>
+
+    <style>
+        body {
+            font-family: Arial;
+            background: #111;
+            color: white;
+            padding: 20px;
+        }
+
+        .card {
+            background: #222;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 10px;
+        }
+    </style>
+
+</head>
+<body>
+
+<h1>Telegram Bot Dashboard</h1>
+
+<h2>Total Users: {{ total_users }}</h2>
+
+{% for user in users %}
+
+<div class="card">
+
+    <p><b>Name:</b> {{ user.first_name }}</p>
+
+    <p><b>Username:</b> @{{ user.username }}</p>
+
+    <p><b>ID:</b> {{ user.id }}</p>
+
+    <p><b>Messages:</b> {{ user.messages }}</p>
+
+    <p><b>Topic:</b> {{ user.topic }}</p>
+
+</div>
+
+{% endfor %}
+
+</body>
+</html>
