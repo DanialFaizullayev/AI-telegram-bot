@@ -61,29 +61,60 @@ def clean_markdown(text):
 
 user_histories = {}
 user_topics = {}
+import json
+
+USERS_FILE = "users.json"
+
+def load_users():
+    try:
+        with open(USERS_FILE, "r") as f:
+            return set(json.load(f))
+    except:
+        return set()
+
+def save_users(users):
+    with open(USERS_FILE, "w") as f:
+        json.dump(list(users), f)
+
+all_users = load_users()
 
 TOPIC_PROMPTS = {
-    "📐 Математика": "You are an expert Math tutor for Kazakh ENT exam. Focus on algebra, geometry, calculus. Give step-by-step solutions.Never use LaTeX or markdown formatting. Write math in plain text only, use ^ for powers and / for fractions.",
-    "⚡ Физика": "You are an expert Physics tutor for Kazakh ENT exam. Focus on mechanics, electricity, thermodynamics. Give clear explanations with formulas.Never use LaTeX or markdown formatting. Write math in plain text only, use ^ for powers and / for fractions.",
-    "🏛 История Казахстана": "You are an expert on History of Kazakhstan for the ENT exam. Cover ancient history to modern Kazakhstan. Be precise with dates and events.Never use LaTeX or markdown formatting. Write math in plain text only, use ^ for powers and / for fractions.",
-    "📚 Общий": "You are a smart study assistant helping Kazakh students prepare for the ENT exam. Help with any subject.Never use LaTeX or markdown formatting. Write math in plain text only, use ^ for powers and / for fractions.",
+    "📐 Математика": "You are an expert Math tutor for Kazakh ENT exam. Focus on algebra, geometry, calculus. Give step-by-step solutions. Never use LaTeX or markdown formatting. Write math in plain text only, use ^ for powers and / for fractions.",
+    "📖 Грамотность чтения": "You are an expert tutor for Reading Literacy (Грамотность чтения) section of the Kazakh ENT exam. Help students analyze texts, understand main ideas, and answer comprehension questions. Never use LaTeX or markdown formatting.",
+    "🏛 История Казахстана": "You are an expert on History of Kazakhstan for the ENT exam. Cover ancient history to modern Kazakhstan. Be precise with dates and events. Never use LaTeX or markdown formatting.",
+    "⚡ Физика": "You are an expert Physics tutor for Kazakh ENT exam. Focus on mechanics, electricity, thermodynamics. Give clear explanations with formulas. Never use LaTeX or markdown formatting. Write math in plain text only.",
+    "💻 Информатика": "You are an expert Informatics tutor for Kazakh ENT exam. Cover algorithms, data structures, programming basics, computer architecture. For CS terms use English names like Bubble sort, Array, Function rather than literal Kazakh translations. Never use LaTeX or markdown formatting.",    "🧬 Биология": "You are an expert Biology tutor for Kazakh ENT exam. Cover cell biology, genetics, anatomy, ecology. Never use LaTeX or markdown formatting.",
+    "⚗️ Химия": "You are an expert Chemistry tutor for Kazakh ENT exam. Cover organic and inorganic chemistry, reactions, periodic table. Never use LaTeX or markdown formatting.",
+    "🌍 География": "You are an expert Geography tutor for Kazakh ENT exam. Cover physical and economic geography of Kazakhstan and the world. Never use LaTeX or markdown formatting.",
+    "🌐 Всемирная история": "You are an expert World History tutor for Kazakh ENT exam. Cover ancient civilizations to modern history. Be precise with dates and events. Never use LaTeX or markdown formatting.",
+    "📚 Общий": "You are a smart study assistant helping Kazakh students prepare for the ENT exam. Help with any subject. Never use LaTeX or markdown formatting.",
 }
 
 MAIN_MENU = ReplyKeyboardMarkup(
     [
-        [KeyboardButton("📐 Математика"), KeyboardButton("⚡ Физика")],
-        [KeyboardButton("🏛 История Казахстана"), KeyboardButton("📚 Общий")],
+        [KeyboardButton("📐 Математика"), KeyboardButton("📖 Грамотность чтения")],
+        [KeyboardButton("🏛 История Казахстана"), KeyboardButton("⚡ Физика")],
+        [KeyboardButton("💻 Информатика"), KeyboardButton("🧬 Биология")],
+        [KeyboardButton("⚗️ Химия"), KeyboardButton("🌍 География")],
+        [KeyboardButton("🌐 Всемирная история"), KeyboardButton("📚 Общий")],
         [KeyboardButton("🔄 Сменить тему")]
     ],
     resize_keyboard=True
 )
 
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
+    all_users.add(user_id)
+    save_users(all_users)
     user_histories[user_id] = []
     user_topics[user_id] = None
     await update.message.reply_text(
-        "Сәлем! Мен ЕНТ дайындығына көмектесетін AI ботпын.\nВыбери предмет для начала:",
+        "Сәлем! 👋 ЕНТ-ге дайындалып жатырсыз ба?\n\n"
+        "Привет! Я твой AI помощник для подготовки к ЕНТ 🎯\n"
+        "Могу помочь с математикой, историей, физикой и другими предметами.\n\n"
+        "Выбери предмет, с которого хочешь начать 👇",
         reply_markup=MAIN_MENU
     )
 
@@ -99,6 +130,8 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
+    all_users.add(user_id)
+    save_users(all_users)
     user_message = update.message.text
 
     if user_message == "🔄 Сменить тему":
@@ -110,14 +143,32 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if user_message in TOPIC_PROMPTS:
         user_topics[user_id] = user_message
         user_histories[user_id] = []
+        topic_intros = {
+            "📐 Математика": "алгебра, геометрия, тригонометрия, логарифмы, производные...",
+            "📖 Грамотность чтения": "анализ текста, главная мысль, вопросы на понимание...",
+            "🏛 История Казахстана": "древняя история, Казахское ханство, советский период, независимость...",
+            "⚡ Физика": "механика, электричество, термодинамика, оптика, ядерная физика...",
+            "💻 Информатика": "алгоритмы, структуры данных, основы программирования, архитектура ПК...",
+            "🧬 Биология": "клетка, генетика, анатомия, экология, эволюция...",
+            "⚗️ Химия": "органическая химия, реакции, периодическая таблица, растворы...",
+            "🌍 География": "физическая география, экономическая география, Казахстан и мир...",
+            "🌐 Всемирная история": "древние цивилизации, средневековье, новое время, XX век...",
+            "📚 Общий": "любой предмет ЕНТ...",
+        }
+        intro = topic_intros.get(user_message, "любые темы...")
         await update.message.reply_text(
-            f"Отлично! Ты выбрал {user_message}.\nЗадавай вопросы!",
+            f"Отлично, выбрал {user_message}! Вот что я могу:\n\n"
+            f"— Объяснить любую тему ({intro})\n"
+            f"— Решить задачу пошагово\n"
+            f"— Прислать практические вопросы для тренировки\n"
+            f"— Разобрать фото с задачей ЕНТ\n\n"
+            f"С чего начнём? Напиши тему или сразу задай вопрос 👇",
             reply_markup=MAIN_MENU
         )
         return
 
     if user_id not in user_topics or user_topics[user_id] is None:
-        await update.message.reply_text("Сначала выбери предмет из меню 👇", reply_markup=MAIN_MENU)
+        
         return
 
     if user_id not in user_histories:
@@ -188,12 +239,21 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Не удалось обработать изображение. Попробуй снова.")
         print(f"Error: {e}")
 
+    
+    all_users = set()
+
+async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    all_users.add(user_id)
+    await update.message.reply_text(f"👥 Всего пользователей: {len(all_users)}")
+
 app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("help", help_command))
 app.add_handler(CommandHandler("reset", reset))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
+app.add_handler(CommandHandler("stats", stats))
 
 print("Bot is running...")
 app.run_polling()
