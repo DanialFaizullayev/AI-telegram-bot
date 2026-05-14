@@ -1,10 +1,14 @@
 def detect_language(text):
+
     text = text.lower()
 
-    if any(c in text for c in "әіңғүұқөһ"):
+    kazakh_letters = "әіңғүұқөһ"
+
+    if any(letter in text for letter in kazakh_letters):
         return "Kazakh"
 
-    if any("а" <= c <= "я" for c in text):
+    elif any("а" <= c <= "я" for c in text):
         return "Russian"
 
-    return "English"
+    else:
+        return "English"

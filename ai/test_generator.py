@@ -1,30 +1,35 @@
-from ai.chat import ask_groq
-from utils.markdown import clean_markdown
+def generate_test_prompt(topic_name):
 
-
-def generate_test(topic_name):
-    prompt = f'''
+    return f"""
 Создай реалистичный тест ЕНТ по предмету "{topic_name}".
 
-- 10 вопросов
-- 4 варианта ответа
-- Только русский язык
+Требования:
 
-В конце напиши:
+- 10 вопросов
+- Уровень 11 класса
+- Разные темы предмета
+- Разная сложность
+- Только русский язык
+- Формат multiple choice
+- 4 варианта ответа
+
+Пример:
+
+1. Вопрос
+
+A) ...
+B) ...
+C) ...
+D) ...
+
+ВАЖНО:
+
+В КОНЦЕ напиши:
 
 ANSWERS:
 1-A
-2-B
-'''
+2-C
+3-D
 
-    reply = ask_groq([
-        {
-            "role": "system",
-            "content": f"Ты создаешь тесты ЕНТ по предмету {topic_name}."
-        },
-        {
-            "role": "user", "content": prompt
-        }
-    ])
-
-    return clean_markdown(reply)
+Без объяснений.
+"""

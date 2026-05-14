@@ -4,6 +4,9 @@ from telegram.ext import ContextTypes
 from ai.chat import ask_groq
 from ai.prompts import TOPIC_PROMPTS
 from ai.explanations import EXPLAIN_WORDS
+from templates.topic_intros import TOPIC_INTROS
+from ai.explanations import EXPLAIN_WORDS, explain_test
+from ai.test_generator import generate_test_prompt
 
 from config.settings import (
     user_histories,
@@ -18,13 +21,13 @@ from utils.keyboards import MAIN_MENU, QUICK_MENU
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    message = update.message.text
+    user_message = update.message.text
 
     # =========================
     # CHANGE TOPIC
     # =========================
 
-    if message == "🔄 Сменить тему":
+    if user_message == "🔄 Сменить тему":
 
         user_topics[user_id] = None
         user_histories[user_id] = []
@@ -40,10 +43,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # TOPIC SELECTION
     # =========================
 
-    if message in TOPIC_PROMPTS:
+    if user_message in TOPIC_PROMPTS:
 
-        user_topics[user_id] = message
+        user_topics[user_id] = user_message
         user_histories[user_id] = []
+
+        await update.message.reply_text(
+            TOPIC_INTROS[user_message],
+            reply_markup=QUICK_MENU
+        )
 
         await update.message.reply_text(
             "✍️ Теперь отправь вопрос или фото задачи.",
@@ -65,13 +73,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         return
 
-    # =========================
+            # =========================
     # TEST ANSWER CHECKING
     # =========================
 
-    if user_id in active_tests and message != "📝 Тест":
+    if user_id in active_tests and user_message != "📝 Тест":
 
-        lowered = message.lower()
+        test_data = active_tests[user_id]
+
+        lowered = user_message.lower()
 
         # =========================
         # TEST EXPLANATION
@@ -79,68 +89,48 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if any(word in lowered for word in EXPLAIN_WORDS):
 
-            test_data = active_tests[user_id]
+            explanation_prompt = explain_test(test_data)
 
-            explanation_prompt = f"""
-Ты преподаватель ЕНТ.
+        reply = ask_groq([
+            {
+                "role": "system",
+                "content": "Ты helpful ENT tutor."
+            },
+            {
+                "role": "user",
+                "content": explanation_prompt
+            }
+        ])
 
-Вот прошлый тест:
+        reply = clean_markdown(reply)
 
-{test_data["questions"]}
+        await update.message.reply_text(
+            reply,
+            reply_markup=QUICK_MENU
+        )
 
-Правильные ответы:
-{test_data["answers"]}
-
-Ответы ученика:
-{test_data["user_answers"]}
-
-Объясни КАЖДЫЙ вопрос пошагово.
-Объясни почему правильный ответ правильный.
-Пиши только на русском языке.
-"""
-
-            reply = ask_groq([
-                {
-                    "role": "system",
-                    "content": "Ты helpful ENT tutor."
-                },
-                {
-                    "role": "user",
-                    "content": explanation_prompt
-                }
-            ])
-
-            reply = clean_markdown(reply)
-
-            await update.message.reply_text(
-                reply,
-                reply_markup=QUICK_MENU
-            )
-
-            return
+        return
 
         # =========================
-        # CHECK ANSWERS
+        # CHECK TEST ANSWERS
         # =========================
 
-        raw = message.upper().replace(" ", "")
+        raw = user_message.upper().replace(" ", "")
 
         raw = (
             raw.replace("А", "A")
-               .replace("Б", "B")
-               .replace("В", "C")
-               .replace("Г", "D")
+            .replace("Б", "B")
+            .replace("В", "C")
+            .replace("Г", "D")
         )
 
         user_answers = list(raw)
 
-        test_data = active_tests[user_id]
         correct_answers = test_data["answers"]
 
         test_data["user_answers"] = user_answers
 
         score = 0
-
         result_text = "📊 Результаты теста:\n\n"
 
         for i, correct in enumerate(correct_answers):
@@ -153,9 +143,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
                     score += 1
 
-                    result_text += (
-                        f"{i+1}. ✅ {correct}\n"
-                    )
+                    result_text += f"{i+1}. ✅ {correct}\n"
 
                 else:
 
@@ -171,9 +159,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     f"Правильно: {correct}\n"
                 )
 
-        result_text += (
-            f"\n🏆 Балл: {score}/{len(correct_answers)}"
-        )
+        result_text += f"\n🏆 Балл: {score}/{len(correct_answers)}"
 
         result_text += (
             "\n\n💡 Напиши:\n"
@@ -188,6 +174,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         return
 
+
     # =========================
     # NORMAL CHAT
     # =========================
@@ -197,22 +184,24 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_histories[user_id].append({
         "role": "user",
-        "content": message
+        "content": user_message
     })
 
     history = user_histories[user_id][-10:]
+    
 
-    language = detect_language(message)
+    language = detect_language(user_message)
 
     system_prompt = (
         TOPIC_PROMPTS[user_topics[user_id]]
         + f"\n\nIMPORTANT: Always answer ONLY in {language} language."
     )
 
-    loading = await update.message.reply_text(
-        "⏳ Думаю над ответом...\n"
-        "⏳ Жауап дайындап жатырмын..."
-    )
+   
+    loading_msg = await update.message.reply_text(
+    "⏳ Думаю над ответом...\n"
+    "⏳ Жауап дайындап жатырмын..."
+)
 
     try:
 
@@ -225,7 +214,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         reply = clean_markdown(reply)
 
-        await loading.delete()
+        
+        await loading_msg.delete()
 
         user_histories[user_id].append({
             "role": "assistant",
