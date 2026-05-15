@@ -3,7 +3,7 @@ import json
 
 app = Flask(__name__)
 
-USERS_FILE = "users.json"
+USERS_FILE = "data/users.json"
 
 def load_users():
     try:
