@@ -14,3 +14,11 @@ Telegram bot that helps with ENT prep (the university entrance exam in Kazakhsta
 - answers go through a small cleanup function because Telegram doesn't render markdown/LaTeX from the model
 
 There's also `/stats` and a small Flask dashboard (`dashboard.py`) that read users from `data/users.json`.
+
+## Tech stack
+
+- Python
+- python-telegram-bot 20.7
+- Groq API, model `meta-llama/llama-4-scout-17b-16e-instruct`
+- python-dotenv
+- Flask (dashboard only)
