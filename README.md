@@ -1,0 +1,15 @@
+AI ENT Assistant
+
+Telegram bot that helps with ENT prep (the university entrance exam in Kazakhstan). You pick a subject, send a question or a photo of a problem, and it explains the solution step by step. It can also make a 10 question test and check your answers.
+
+How it works
+/start shows a keyboard with the subjects (math, physics, chemistry, biology, informatics, geography, history of Kazakhstan, world history, reading literacy, general)
+picking a subject loads a system prompt for that subject
+every message goes to the Groq API with the subject prompt and the last 10 messages as history
+the language is detected from your message (Kazakh / Russian / English) and the bot answers in the same one
+photos are sent to the same model (it's multimodal) and it solves the task from the image
+the "Тест" button asks the model for a 10 question multiple choice test with an answer key at the end. The bot cuts the key out, shows you the questions, and when you send A C D B ... it checks them and gives a score
+after a test you can write "Объясни тест" and it explains every question
+answers go through a small cleanup function because Telegram doesn't render markdown/LaTeX from the model
+
+There's also /stats and a small Flask dashboard (dashboard.py) that read users from data/users.json.
