@@ -22,3 +22,31 @@ There's also `/stats` and a small Flask dashboard (`dashboard.py`) that read use
 - Groq API, model `meta-llama/llama-4-scout-17b-16e-instruct`
 - python-dotenv
 - Flask (dashboard only)
+
+## Project structure
+
+```
+bot.py              entry point, registers handlers
+dashboard.py        flask dashboard
+ai/
+  chat.py           groq request wrapper
+  prompts.py        system prompt for each subject
+  test_generator.py prompt for generating tests
+  explanations.py   prompt for explaining tests
+config/
+  settings.py       env vars, model name, groq client, in-memory state
+handlers/
+  start_handler.py
+  message_handler.py  subjects, chat, tests, answer checking
+  photo_handler.py
+  stats_handler.py
+  test_handler.py
+templates/
+  index.html        dashboard page
+  topic_intros.py   intro text for each subject
+utils/
+  keyboards.py
+  language.py       language detection
+  markdown.py       cleans markdown/latex
+  storage.py        read/write users.json
+```
